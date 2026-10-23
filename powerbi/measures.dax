@@ -1,0 +1,66 @@
+-- Tables: DimCustomer, DimPlan, FactSubscriptions, FactUsage, FactSubscriptionEvents, DimDate.
+-- Relationships and caveats are described in README.md. Currency must be filtered to one currency.
+
+Total Customers = DISTINCTCOUNT(DimCustomer[_id])
+
+Active Subscriptions =
+CALCULATE(
+    DISTINCTCOUNT(FactSubscriptions[_id]),
+    FactSubscriptions[status] IN { "active", "past_due" }
+)
+
+New Subscriptions =
+CALCULATE(
+    DISTINCTCOUNT(FactSubscriptions[_id]),
+    USERELATIONSHIP(DimDate[Date], FactSubscriptions[startDate])
+)
+
+Cancelled Subscriptions =
+CALCULATE(
+    DISTINCTCOUNT(FactSubscriptionEvents[_id]),
+    FactSubscriptionEvents[type] = "cancelled"
+)
+
+Cancellation Rate (Portfolio) =
+DIVIDE([Cancelled Subscriptions], DISTINCTCOUNT(FactSubscriptions[_id]), 0)
+
+Estimated MRR =
+SUMX(
+    FILTER(FactSubscriptions, FactSubscriptions[status] IN { "active", "past_due" }),
+    VAR PlanPrice = RELATED(DimPlan[price])
+    VAR BillingInterval = RELATED(DimPlan[billingInterval])
+    RETURN IF(BillingInterval = "yearly", DIVIDE(PlanPrice, 12), PlanPrice)
+)
+
+Estimated Annual Recurring Revenue = [Estimated MRR] * 12
+
+Estimated Revenue by Month =
+CALCULATE(
+    [Estimated MRR],
+    USERELATIONSHIP(DimDate[Date], FactSubscriptions[startDate])
+)
+
+Average Revenue per Active Subscription = DIVIDE([Estimated MRR], [Active Subscriptions], 0)
+
+Total Usage Events = SUM(FactUsage[quantity])
+
+Average Usage per Active Subscription = DIVIDE([Total Usage Events], [Active Subscriptions], 0)
+
+Previous Month MRR =
+CALCULATE([Estimated MRR], DATEADD(DimDate[Date], -1, MONTH))
+
+Month-over-Month MRR Growth =
+DIVIDE([Estimated MRR] - [Previous Month MRR], [Previous Month MRR], 0)
+
+Plan-wise Cancellation Rate =
+DIVIDE(
+    CALCULATE([Cancelled Subscriptions]),
+    CALCULATE(DISTINCTCOUNT(FactSubscriptions[_id])),
+    0
+)
+
+-- Estimated Revenue by Month shows the current estimated MRR for subscriptions that started in
+-- the selected month (a start cohort); it is not historical month-end MRR or collected revenue.
+-- Historical limitation: Estimated MRR reflects current status and plan price. The date slicer
+-- cannot reconstruct past recurring revenue because status/plan snapshots and payments are absent.
+-- Cancellation Rate is a portfolio ratio; use an explicit cohort denominator for formal churn.

@@ -1,16 +1,30 @@
-# React + Vite
+# SubSentry frontend
 
-This template provides a minimal setup to get React working in Vite with HMR and some ESLint rules.
+React 19 + Vite 8 + Tailwind CSS 4 client for the SubSentry API.
 
-Currently, two official plugins are available:
+## Setup
 
-- [@vitejs/plugin-react](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react) uses [Oxc](https://oxc.rs)
-- [@vitejs/plugin-react-swc](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react-swc) uses [SWC](https://swc.rs/)
+```sh
+npm install
+cp .env.example .env
+npm run dev
+```
 
-## React Compiler
+Set `VITE_API_URL` to the API prefix (default `http://localhost:5000/api`, matching the current backend `.env`). Vite variables are public client configuration: never put passwords, JWT signing keys, access tokens, or refresh tokens in them.
 
-The React Compiler is not enabled on this template because of its impact on dev & build performances. To add it, see [this documentation](https://react.dev/learn/react-compiler/installation).
+## Scripts
 
-## Expanding the ESLint configuration
+- `npm run dev` — local Vite server.
+- `npm run build` — production bundle.
+- `npm run preview` — serve the built bundle locally.
+- `npm run lint` — ESLint.
 
-If you are developing a production application, we recommend using TypeScript with type-aware lint rules enabled. Check out the [TS template](https://github.com/vitejs/vite/tree/main/packages/create-vite/template-react-ts) for information on how to integrate TypeScript and [`typescript-eslint`](https://typescript-eslint.io) in your project.
+## Structure and API
+
+- `src/App.jsx` — authenticated workspace shell, dashboard and resource screens.
+- `src/services/api.js` — Axios instance, bearer access token, refresh-cookie rotation, and API helpers.
+- `src/index.css` — responsive workspace styling and Tailwind import.
+
+The sign-in screen supports account registration and login. Access tokens are held in memory; refresh tokens are HTTP-only cookies. Axios sends credentials and refreshes an expired access token once before retrying the request. Configure the API `CORS_ORIGINS` allowlist to include the frontend origin.
+
+The dashboard reads live summary data. Customers, plans, subscriptions, and usage pages support creating and listing records. Subscription/plan IDs are accepted as inputs until searchable relationship pickers are added. The Power BI export workflow is documented at `../powerbi/README.md`.
